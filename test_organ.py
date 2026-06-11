@@ -13,7 +13,9 @@ Covers the pure decision logic extracted from discovery-engine
 """
 
 import base64
+import glob
 import json
+import os
 import subprocess
 import sys
 
@@ -366,6 +368,92 @@ class TestCli:
             text=True,
         )
         assert proc.returncode == 1
+
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_SAMPLES_DIR = os.path.join(_HERE, "samples")
+
+# Each committed sample is pinned to the EXACT verdict decide() must produce,
+# keyed by the sample's filename stem. The conformance workflow only shadow-
+# PRINTS sample output to the job summary (report-only) — it never asserts the
+# verdict — so without this test a verdict flip on any sample would sail
+# through a green CI. These assertions are the verdict lock; the drift guard
+# below forces any NEW sample to declare its expected verdict here.
+_SAMPLE_VERDICTS = {
+    "kept_thread": {"keep": True, "reason": "kept", "decision_path": "kept"},
+    "empty_thread": {
+        "keep": False,
+        "reason": "empty_thread",
+        "decision_path": "empty_thread",
+    },
+    "skip_label_filtered": {
+        "keep": False,
+        "reason": "skip_label",
+        "decision_path": "skip_label",
+    },
+}
+
+
+def _sample_paths():
+    return sorted(glob.glob(os.path.join(_SAMPLES_DIR, "*.json")))
+
+
+class TestSamplesConform:
+    def test_samples_dir_non_empty(self):
+        assert _sample_paths(), "samples/ directory has no .json files"
+
+    def test_every_sample_has_a_pinned_verdict(self):
+        # Drift guard: a new sample must register its expected verdict above,
+        # so adding a sample can never silently widen coverage without a claim.
+        stems = {
+            os.path.splitext(os.path.basename(p))[0] for p in _sample_paths()
+        }
+        unpinned = stems - set(_SAMPLE_VERDICTS)
+        assert not unpinned, (
+            f"samples without a pinned verdict in _SAMPLE_VERDICTS: "
+            f"{sorted(unpinned)}"
+        )
+
+    @pytest.mark.parametrize("path", _sample_paths(), ids=os.path.basename)
+    def test_sample_verdict_pinned(self, path):
+        stem = os.path.splitext(os.path.basename(path))[0]
+        expected = _SAMPLE_VERDICTS[stem]
+        with open(path) as fh:
+            payload = json.load(fh)
+        res = decide(payload["state"], payload.get("context"))
+
+        # Canonical envelope shape.
+        assert set(res) == {"output", "rationale", "self_metric"}
+        assert isinstance(res["self_metric"].get("confidence"), (int, float))
+
+        out = res["output"]
+        assert out["keep"] is expected["keep"]
+        assert out["reason"] == expected["reason"]
+        assert res["self_metric"]["decision_path"] == expected["decision_path"]
+        # A kept thread must carry a projected thread dict; a dropped one must not.
+        if expected["keep"]:
+            assert out["thread"] is not None
+            assert out["thread"]["thread_id"] == payload["state"].get("thread_id")
+        else:
+            assert out["thread"] is None
+        # Samples are well-formed inputs → full confidence, never the fail-open path.
+        assert res["self_metric"]["confidence"] == 1.0
+
+    @pytest.mark.parametrize("path", _sample_paths(), ids=os.path.basename)
+    def test_sample_runs_through_cli(self, path):
+        # The orchestrator invokes the organ as a subprocess with ORGAN_INPUT
+        # pointing at a sample FILE — exercise that exact entrypoint.
+        env = dict(os.environ, ORGAN_INPUT=path)
+        proc = subprocess.run(
+            [sys.executable, os.path.join(_HERE, "organ.py")],
+            capture_output=True,
+            text=True,
+            env=env,
+            stdin=subprocess.DEVNULL,
+        )
+        assert proc.returncode == 0, proc.stderr
+        data = json.loads(proc.stdout)
+        assert set(data) == {"output", "rationale", "self_metric"}
 
 
 if __name__ == "__main__":
