@@ -1,0 +1,62 @@
+{
+  "state": {
+    "thread_id": "thread-kept-001",
+    "messages": [
+      {
+        "id": "msg-1",
+        "threadId": "thread-kept-001",
+        "labelIds": [
+          "UNREAD",
+          "INBOX",
+          "CATEGORY_PERSONAL"
+        ],
+        "snippet": "Hi, here is the Q3 statement you asked for...",
+        "internalDate": "1718000000000",
+        "payload": {
+          "mimeType": "multipart/mixed",
+          "headers": [
+            {
+              "name": "Subject",
+              "value": "Q3 statement attached"
+            },
+            {
+              "name": "From",
+              "value": "Ruth Grierson <ruth@example.com>"
+            },
+            {
+              "name": "To",
+              "value": "inbox@dataflowadvisory.com"
+            },
+            {
+              "name": "Date",
+              "value": "Tue, 10 Jun 2026 09:00:00 +0000"
+            }
+          ],
+          "parts": [
+            {
+              "mimeType": "text/plain",
+              "body": {
+                "data": "SGksCgpQbGVhc2UgZmluZCB0aGUgUTMgc3RhdGVtZW50IGF0dGFjaGVkLgoKVGhhbmtzLApSdXRo"
+              }
+            },
+            {
+              "mimeType": "text/html",
+              "body": {
+                "data": "PHA-SGksPC9wPjxwPlBsZWFzZSBmaW5kIHRoZSBRMyBzdGF0ZW1lbnQgYXR0YWNoZWQuPC9wPg=="
+              }
+            },
+            {
+              "mimeType": "application/pdf",
+              "filename": "Q3-statement.pdf",
+              "body": {
+                "attachmentId": "ANGjdJ-att-1",
+                "size": 84213
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "skip_label_id": "Label_8841"
+  }
+}

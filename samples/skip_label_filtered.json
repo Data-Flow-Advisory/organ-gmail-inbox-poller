@@ -1,0 +1,35 @@
+{
+  "state": {
+    "thread_id": "thread-skip-002",
+    "messages": [
+      {
+        "id": "msg-9",
+        "threadId": "thread-skip-002",
+        "labelIds": [
+          "UNREAD",
+          "INBOX",
+          "Label_8841"
+        ],
+        "snippet": "Personal \u2014 do not ingest",
+        "internalDate": "1718000500000",
+        "payload": {
+          "mimeType": "text/plain",
+          "headers": [
+            {
+              "name": "Subject",
+              "value": "Family dinner plans"
+            },
+            {
+              "name": "From",
+              "value": "mum@example.com"
+            }
+          ],
+          "body": {
+            "data": "U2VlIHlvdSBTdW5kYXkgYXQgNi4="
+          }
+        }
+      }
+    ],
+    "skip_label_id": "Label_8841"
+  }
+}

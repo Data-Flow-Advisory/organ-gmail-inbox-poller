@@ -1,0 +1,35 @@
+name: conformance
+
+# Shadow-run the organ on its committed samples and report each verdict +
+# self_metric to the job summary — report only, no action.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  conform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Shadow-run organ on samples
+        run: |
+          set -euo pipefail
+          echo "# Gmail Inbox Poller Organ — Conformance" >> "$GITHUB_STEP_SUMMARY"
+          if [ -d "samples" ]; then
+            for s in samples/*.json; do
+              echo "## $(basename "$s")" >> "$GITHUB_STEP_SUMMARY"
+              out="$(ORGAN_INPUT="$s" python3 organ.py)"
+              printf '```json\n%s\n```\n' "$out" >> "$GITHUB_STEP_SUMMARY"
+            done
+          else
+            echo "No samples/ directory found" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Run tests
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest -v
