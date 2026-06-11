@@ -456,5 +456,79 @@ class TestSamplesConform:
         assert set(data) == {"output", "rationale", "self_metric"}
 
 
+# ---------------------------------------------------------------------------
+# Connection-standard ports manifest (CONNECTORS.md "port check").
+# ---------------------------------------------------------------------------
+
+import ports_validate  # noqa: E402
+
+_PORTS_PATH = os.path.join(_HERE, "ports.json")
+_TYPES_PATH = os.path.join(_HERE, "types.json")
+
+
+class TestPorts:
+    """ports.json declares the organ's typed wiring surface and is *checked*
+    (not just documented) against decide() and the shared type vocabulary."""
+
+    def test_ports_json_parses_and_shaped(self):
+        with open(_PORTS_PATH) as fh:
+            ports = json.load(fh)
+        assert isinstance(ports, dict)
+        assert isinstance(ports["inputs"], list)
+        assert isinstance(ports["outputs"], list)
+        for p in ports["inputs"] + ports["outputs"]:
+            assert "name" in p and "type" in p
+
+    def test_every_port_type_in_vocabulary(self):
+        with open(_PORTS_PATH) as fh:
+            ports = json.load(fh)
+        with open(_TYPES_PATH) as fh:
+            vocab = json.load(fh)["types"]
+        for p in ports["inputs"] + ports["outputs"]:
+            assert p["type"] in vocab, (
+                f"port {p['name']!r} type {p['type']!r} missing from types.json"
+            )
+
+    def test_declared_inputs_are_read_by_decide(self):
+        # Structural proof: decide() must actually read each declared input
+        # name off state — a phantom port fails here.
+        violations = [
+            v for v in ports_validate.validate() if "input port" in v
+        ]
+        assert not violations, violations
+
+    def test_declared_outputs_are_written_by_decide(self):
+        violations = [
+            v for v in ports_validate.validate() if "output port" in v
+        ]
+        assert not violations, violations
+
+    def test_full_validator_passes(self):
+        assert ports_validate.validate() == []
+
+    def test_validator_catches_an_unknown_type(self, tmp_path, monkeypatch):
+        # Negative check: if a port declared a type NOT in the vocabulary,
+        # the validator must flag it — proving the check has teeth.
+        bad_ports = tmp_path / "ports.json"
+        bad_ports.write_text(json.dumps({
+            "inputs": [{"name": "messages", "type": "GmailMessages", "required": True}],
+            "outputs": [{"name": "thread", "type": "NotARealType"}],
+        }))
+        monkeypatch.setattr(ports_validate, "_PORTS", str(bad_ports))
+        violations = ports_validate.validate()
+        assert any("not in the vocabulary" in v for v in violations), violations
+
+    def test_validator_catches_a_phantom_input_port(self, tmp_path, monkeypatch):
+        # Negative check: a declared input decide() never reads must fail.
+        bad_ports = tmp_path / "ports.json"
+        bad_ports.write_text(json.dumps({
+            "inputs": [{"name": "never_read_key", "type": "GmailMessages", "required": True}],
+            "outputs": [{"name": "thread", "type": "GmailThread"}],
+        }))
+        monkeypatch.setattr(ports_validate, "_PORTS", str(bad_ports))
+        violations = ports_validate.validate()
+        assert any("never reads" in v for v in violations), violations
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))

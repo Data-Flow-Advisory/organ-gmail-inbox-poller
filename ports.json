@@ -1,0 +1,14 @@
+{
+  "_README": "The connection-standard ports manifest for organ-gmail-inbox-poller. See CONNECTORS.md in Data-Flow-Advisory/orchestrator@feat/drift-gate. `name` is the literal wiring address — the key decide() reads under `state` (inputs) / writes under `output` (outputs). `type` is a name from the shared vocabulary (types.json) — the stud size; two ports connect iff their type matches. This is an IO edge organ: its raw input comes from the caller's Gmail effect runner, not another organ's output, so its port types are IO contracts (GmailMessages in, GmailThread out).",
+  "inputs": [
+    {"name": "messages", "type": "GmailMessages", "required": true}
+  ],
+  "outputs": [
+    {"name": "thread", "type": "GmailThread"}
+  ],
+  "_non_ports": {
+    "_comment": "Intentionally un-ported: scalar/echo controls with no cross-organ producer and no vocabulary primitive type. Typing each as its own port would sprawl the vocabulary (CONNECTORS.md: 'sprawl defeats it'), and none is a genuine inter-organ connection point. thread_id = echo-through thread identifier (copied verbatim onto the output thread); skip_label_id = a pre-resolved skip-label id, a caller-IO control parameter (the label name->id resolution stays in the caller). On the output side, keep (bool) and reason (str) are verdict metadata derivable from the typed `thread` port (thread is null <=> the thread was dropped), so they need no separate vocabulary type.",
+    "inputs": ["thread_id", "skip_label_id"],
+    "outputs": ["keep", "reason"]
+  }
+}

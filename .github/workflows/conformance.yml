@@ -29,6 +29,12 @@ jobs:
           else
             echo "No samples/ directory found" >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Ports manifest conformance
+        run: |
+          set -euo pipefail
+          echo "## ports.json" >> "$GITHUB_STEP_SUMMARY"
+          out="$(python3 ports_validate.py)"
+          printf '```\n%s\n```\n' "$out" >> "$GITHUB_STEP_SUMMARY"
       - name: Run tests
         run: |
           python -m pip install --quiet pytest
