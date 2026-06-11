@@ -10,7 +10,7 @@ on:
 
 jobs:
   conform:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, dfa-ci]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
