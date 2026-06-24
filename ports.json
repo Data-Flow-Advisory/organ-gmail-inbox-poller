@@ -1,0 +1,30 @@
+{
+  "_README": "Connection-standard ports manifest for organ-gmail-inbox-poller. inputs/outputs describe the typed edges this pure decider reads and writes; the _checked block records the operator-mandated corpus + OSS audit (every organ must carry corpus_checked + oss_checked).",
+  "_checked": {
+    "corpus_checked": "2026-06-11",
+    "oss_checked": "2026-06-11",
+    "audit_item": 19970,
+    "corpus_verdict": "NOT_DUPLICATE",
+    "corpus_ref": "Data-Flow-Advisory/organ-gmail-reader-reader",
+    "corpus_rationale": "No organ duplicates this one's defining capability — the THREAD-LEVEL keep/skip decision (empty-thread guard + the dfa:skip privacy-control drop + first-message subject/from/snippet projection), extracted from discovery-engine lib/dataflow_core/gmail_inbox/poller.py. Surveyed all 10 mail/poll-related sibling organs: organ-gmail-reader-reader is a message-level PARSER (output 'parsed_messages', no keep/skip), organ-email-ingestion is an ingestion-RANKING decider (dedup + recency/importance prioritisation over message metadata), organ-gmail-inbox-auth is the OAuth credential-freshness gate from the same subsystem's auth.py, organ-email-triage{,-actions} are triage classifiers, organ-persona-inbox-guard{,-v2} guard persona inboxes, organ-gmail-mailer / organ-gmail-credentials-credentials are send/credential paths. None carries this organ's thread keep/skip surface, and none is a superset of it. HOWEVER there IS a genuine CODE overlap worth flagging (see issue): this organ's MIME walker extract_mime_body()/parse_message() is near-identical to organ-gmail-reader-reader's — same recursive multipart walk, same text/plain+text/html base64url decode, same attachment-stub shape, same case-insensitive header map. That duplication mirrors a pre-existing one in discovery-engine itself (poller.py and gmail_reader/reader.py both define extract_mime_body, confirmed near-identical via AST diff). Recommend the two organs share one MIME-parse brick (compose organ-gmail-reader-reader for the parse, keep the keep/skip decider here) rather than re-embed. This is a refactor/dedup opportunity, NOT a retire-this-organ duplicate.",
+    "oss_verdict": "NO_ADOPT",
+    "oss_rationale": "Bespoke platform glue. The organ's value is two platform-specific business rules — the dfa:skip privacy control (drop any thread carrying a pre-resolved skip-label id) and the empty-thread guard / first-message summary projection the platform consumes — wrapped around a trivial stdlib MIME walk over Gmail-API message-resource JSON. No permissive OSS library targets this contract: Python stdlib `email`, mail-parser, flanker, etc. parse RFC822 RAW bytes, whereas the input here is Gmail's ALREADY-decomposed payload.parts structure with per-part base64url body.data (the caller pre-fetched it via threads().get(format='full')). They neither fit the input shape nor express the dfa:skip / thread-keep business semantics. Google's google-api-python-client does the I/O (list/get/labels) which is deliberately the CALLER's job and explicitly NOT part of this pure organ. Any of these would also be a third-party dependency, which the organ conformance gate forbids (stdlib-only). Keep as platform glue."
+  },
+  "inputs": {
+    "fetched_thread": {
+      "type": "GmailFetchedThread",
+      "_status": "PROPOSED",
+      "required": true,
+      "source": "state",
+      "description": "A single Gmail thread the CALLER has already fetched: {thread_id: str|null, messages: [<raw Gmail message resource>...], skip_label_id: str|null}. Each raw message is the threads().get(format='full') shape — {id, threadId, labelIds, snippet, internalDate, payload:{headers, mimeType, parts}}. skip_label_id is the caller's pre-resolved id of the dfa:skip label (null disables the filter — the organ never invents it). The organ reads this fail-open: malformed input yields keep:true, not an exception."
+    }
+  },
+  "outputs": {
+    "thread_decision": {
+      "type": "GmailThreadKeepDecision",
+      "_status": "PROPOSED",
+      "sink": "output",
+      "description": "{keep: bool, reason: 'kept'|'skip_label'|'empty_thread', thread: <normalised thread>|null}. When keep is true, thread carries {thread_id, messages:[<parsed flat message dict with body_text/body_html/attachments>...], subject, from, snippet} projected from the first message. When keep is false, thread is null and reason names the drop cause. Fail-open: any internal error returns keep:true with self_metric.decision_path='error_fallback'."
+    }
+  }
+}
